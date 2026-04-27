@@ -45,6 +45,14 @@ jobs:
           $env:GOOS = 'windows'; $env:GOARCH = 'amd64'; $env:CGO_ENABLED = '0'
           go build -trimpath -ldflags "-s -w -X main.version=$v" -o "../../$stage/msxcp.exe" .
           Pop-Location
+          # The Go wrapper delegates to msxcp.cmd, which itself runs msxcp.ps1.
+          # Both must be staged next to msxcp.exe inside the portable zip.
+          Copy-Item msxcp.cmd  "$stage/msxcp.cmd"
+          Copy-Item msxcp.ps1  "$stage/msxcp.ps1"
+          Copy-Item bootstrap.ps1 "$stage/bootstrap.ps1"
+          Copy-Item LICENSE    "$stage/LICENSE"
+          Copy-Item README.md  "$stage/README.md"
+          Get-ChildItem $stage | Format-Table Name, Length
 
       - name: Package zip
         id: zip
