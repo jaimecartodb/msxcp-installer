@@ -4,12 +4,12 @@
 
 .DESCRIPTION
     Run this script once to set up everything needed to generate governance reports.
-    It checks prerequisites, authenticates with GitHub, clones the (private) working
-    repo, installs dependencies, and runs interactive setup.
+    It checks prerequisites, authenticates with GitHub (your Microsoft EMU account),
+    clones the MCAPS-internal working repo, installs dependencies, and runs setup.
 
 .PARAMETER Owner
-    GitHub org/user that owns the private working repo. Defaults to the
-    MSXCP_REPO_OWNER environment variable, then falls back to 'jaimecartodb'.
+    GitHub org that owns the working repo. Defaults to the MSXCP_REPO_OWNER
+    environment variable, then falls back to 'mcaps-microsoft'.
 
 .PARAMETER Check
     Run prerequisite + access checks only — no clone, no install, no setup.
@@ -25,30 +25,34 @@
     irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/bootstrap.ps1 | iex
 
 .EXAMPLE
-    # Point at a different fork (e.g., after migration to the Microsoft org):
-    .\bootstrap.ps1 -Owner microsoft
+    # Point at an alternate fork or test org:
+    .\bootstrap.ps1 -Owner mcaps-microsoft
 
 .NOTES
-    Prerequisites: a Windows machine with `winget` (Windows 10 1809+ or Windows 11).
+    Prerequisites: a Windows machine with `winget` (Windows 10 1809+ or Windows 11),
+    and a Microsoft GitHub EMU account (e.g. <alias>_microsoft). MSXCP is a
+    MCAPS-internal tool — all access is governed by membership of the
+    `mcaps-microsoft` GitHub org (Internal-visibility repo).
+
     Everything else — Git, GitHub CLI, Node.js, Python, Azure CLI — is auto-installed
     by this script if missing. GlobalProtect VPN still has to be installed from your
     IT portal separately.
 
-    The MSXCP working repo is private. You must have been added to the `msxcp-users`
-    GitHub team (or granted Read on the repo individually) before running this. The
-    bootstrap will prompt you to authenticate with `gh auth login` and will print a
-    friendly access-request link if your account doesn't have access yet.
+    If you don't yet have a Microsoft GitHub EMU account, or aren't a member of
+    `mcaps-microsoft`, the bootstrap prints a friendly link to the StartRight
+    onboarding portal (https://aka.ms/startright) and exits cleanly.
 #>
 param(
-    [string]$Owner = $(if ($env:MSXCP_REPO_OWNER) { $env:MSXCP_REPO_OWNER } else { 'jaimecartodb' }),
+    [string]$Owner = $(if ($env:MSXCP_REPO_OWNER) { $env:MSXCP_REPO_OWNER } else { 'mcaps-microsoft' }),
     [switch]$Check
 )
 
 $ErrorActionPreference = "Stop"
-$WorkDir   = Join-Path $env:USERPROFILE "Coding"
-$LogPath   = Join-Path $WorkDir "msxcp-bootstrap.log"
-$WorkRepo  = "emea-dn-governance-report"
-$AccessUrl = "https://github.com/$Owner/msxcp-installer/blob/main/docs/REQUEST-ACCESS.md"
+$WorkDir    = Join-Path $env:USERPROFILE "Coding"
+$LogPath    = Join-Path $WorkDir "msxcp-bootstrap.log"
+$WorkRepo   = "msxcp-engine"
+$AccessUrl  = "https://github.com/jaimecartodb/msxcp-installer/blob/main/docs/REQUEST-ACCESS.md"
+$StartRight = "https://aka.ms/startright"
 
 # Honour env var as alternate way to trigger -Check (works through `irm | iex`).
 if ($env:MSXCP_BOOTSTRAP_CHECK -eq "1") { $Check = $true }
@@ -167,15 +171,29 @@ try {
 } catch {}
 
 if (-not $hasAccess) {
+    $ghUserNow = (gh api user --jq .login 2>$null)
     Write-Host ""
-    Write-Host "  [X] Your GitHub account doesn't have access to $Owner/$WorkRepo." -ForegroundColor Red
-    Write-Host "      MSXCP's working repo is private. You need to be added to the" -ForegroundColor Gray
-    Write-Host "      'msxcp-users' team before installing." -ForegroundColor Gray
+    Write-Host "  [X] Your GitHub account ($ghUserNow) can't see $Owner/$WorkRepo." -ForegroundColor Red
     Write-Host ""
-    Write-Host "      Request access:" -ForegroundColor Cyan
-    Write-Host "        $AccessUrl" -ForegroundColor Cyan
+    if ($ghUserNow -notmatch "_microsoft$") {
+        Write-Host "      You appear to be signed in with a personal GitHub account." -ForegroundColor Gray
+        Write-Host "      MSXCP is a MCAPS-internal tool — access requires your Microsoft" -ForegroundColor Gray
+        Write-Host "      GitHub EMU account (looks like <alias>_microsoft)." -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "      Fix: gh auth logout, then re-run this bootstrap and pick your" -ForegroundColor Cyan
+        Write-Host "           Microsoft account when the browser opens." -ForegroundColor Cyan
+    } else {
+        Write-Host "      You're signed in with your Microsoft EMU account, but you're not" -ForegroundColor Gray
+        Write-Host "      yet a member of the 'mcaps-microsoft' GitHub org (which the repo" -ForegroundColor Gray
+        Write-Host "      lives in)." -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "      Join the org via StartRight (one-time, takes ~5 min):" -ForegroundColor Cyan
+        Write-Host "        $StartRight" -ForegroundColor Cyan
+        Write-Host "        -> 'Join organization' -> search 'mcaps-microsoft' -> submit" -ForegroundColor Cyan
+    }
     Write-Host ""
-    Write-Host "      Once you've been added, re-run this bootstrap." -ForegroundColor Gray
+    Write-Host "      More info: $AccessUrl" -ForegroundColor Gray
+    Write-Host "      Once you have access, re-run this bootstrap." -ForegroundColor Gray
     Write-Host ""
     try { Stop-Transcript } catch {}
     exit 1

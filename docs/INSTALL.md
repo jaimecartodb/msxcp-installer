@@ -9,7 +9,7 @@ The bootstrap installs (via `winget`) any of these that aren't already on your m
 | Tool          | winget package          | Why                                          |
 | ------------- | ----------------------- | -------------------------------------------- |
 | Git           | `Git.Git`               | Clone + version control                      |
-| GitHub CLI    | `GitHub.cli`            | Authenticated clone of the private repo      |
+| GitHub CLI    | `GitHub.cli`            | Authenticated clone of the MCAPS-internal repo |
 | Node.js LTS   | `OpenJS.NodeJS.LTS`     | MSX-MCP CRM data fetcher                     |
 | Python 3.11   | `Python.Python.3.11`    | Report generator + CLI                       |
 | Azure CLI     | `Microsoft.AzureCLI`    | Auth for CRM + SharePoint                    |
@@ -20,7 +20,7 @@ comes from your IT portal — install it separately via your IT self-service por
 ## What the bootstrap touches
 
 - Creates `%USERPROFILE%\Coding` if missing.
-- Clones the working repo into `%USERPROFILE%\Coding\emea-dn-governance-report`.
+- Clones the working repo into `%USERPROFILE%\Coding\msxcp-engine`.
 - Adds an `msxcp` function to `$PROFILE.CurrentUserAllHosts` so you can launch from any directory.
 - Writes a transcript to `%USERPROFILE%\Coding\msxcp-bootstrap.log` for support.
 - Runs `gh auth login -h github.com -w` (browser flow) and `gh auth refresh -s read:org`.
@@ -40,7 +40,7 @@ one-liner — it'll skip what's already done.
 
 ```powershell
 # Remove the working repo
-Remove-Item -Recurse -Force "$env:USERPROFILE\Coding\emea-dn-governance-report"
+Remove-Item -Recurse -Force "$env:USERPROFILE\Coding\msxcp-engine"
 
 # Remove the msxcp function from your profile (manual edit)
 notepad $PROFILE.CurrentUserAllHosts

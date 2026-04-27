@@ -1,10 +1,10 @@
 # MSXCP Installer
 
-**Public installer + winget manifests for [MSXCP](https://github.com/jaimecartodb/emea-dn-governance-report)** — the AI-powered governance report engine for Microsoft EMEA Digital Natives.
+**Public installer + winget manifests for [MSXCP](https://github.com/mcaps-microsoft/msxcp-engine)** — the AI-powered governance report engine for the EMEA Digital Natives team (MCAPS).
 
-> The MSXCP working repository is **private**. This repo is the public entry point for installing it.
-> You must have been granted Read access to the working repo before installing.
-> See [docs/REQUEST-ACCESS.md](docs/REQUEST-ACCESS.md).
+> The MSXCP working repository is **MCAPS-internal** (`mcaps-microsoft/msxcp-engine`, Internal visibility).
+> Any Microsoft employee who is a member of the `mcaps-microsoft` GitHub org can install MSXCP — no per-user invitation required.
+> If you're not yet a member of `mcaps-microsoft`, see [docs/REQUEST-ACCESS.md](docs/REQUEST-ACCESS.md).
 
 ---
 
@@ -18,9 +18,9 @@ irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/bootstra
 
 What this does:
 1. Installs prereqs via `winget`: Git, GitHub CLI, Node.js LTS, Python 3.11, Azure CLI.
-2. Prompts you to sign in to GitHub (`gh auth login`) — *uses your GitHub identity to clone the private working repo*.
-3. Verifies you have access to `jaimecartodb/emea-dn-governance-report`. If not, prints a friendly access-request link and exits.
-4. Clones the working repo to `%USERPROFILE%\Coding\emea-dn-governance-report`.
+2. Prompts you to sign in to GitHub with your **Microsoft EMU account** (looks like `<alias>_microsoft`) — `gh auth login` browser flow.
+3. Verifies your account can read `mcaps-microsoft/msxcp-engine`. If not, prints a friendly link to StartRight (https://aka.ms/startright) and exits cleanly.
+4. Clones the working repo to `%USERPROFILE%\Coding\msxcp-engine`.
 5. Installs npm + pip dependencies.
 6. Logs you into Azure (browser flow).
 7. Runs the interactive territory-setup wizard.
@@ -58,24 +58,25 @@ winget install --manifest .\msxcp-installer\winget\manifests\j\jaimecartodb\MSXC
 
 ## Audience matrix — which install path is for me?
 
-| If you are…                                                | Use this path                                          |
-| ---------------------------------------------------------- | ------------------------------------------------------ |
-| EMEA DN team member with `msxcp-users` Read access         | **Bootstrap one-liner** (top of this README)           |
-| Internal pilot wanting the winget UX today                 | `winget install --manifest …` against this repo        |
-| Anyone, once winget-pkgs PR #364380 lands                  | `winget install jaimecartodb.MSXCP`                    |
-| Don't have access yet                                      | Read [docs/REQUEST-ACCESS.md](docs/REQUEST-ACCESS.md)  |
+| If you are…                                                  | Use this path                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------ |
+| Microsoft employee, member of `mcaps-microsoft` GitHub org   | **Bootstrap one-liner** (top of this README)           |
+| Microsoft employee, **not yet** a member of `mcaps-microsoft` | First [join the org via StartRight](docs/REQUEST-ACCESS.md), then run the bootstrap |
+| Internal pilot wanting the winget UX today                   | `winget install --manifest …` against this repo        |
+| Anyone, once winget-pkgs PR #364380 lands                    | `winget install jaimecartodb.MSXCP`                    |
 
 ---
 
 ## Troubleshooting
 
-| Symptom                                                     | Cause                                              | Fix                                                                                                                |
-| ----------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `404 Not Found` on the `irm` one-liner                      | Network proxy or you're typing the URL wrong       | Confirm you can reach `raw.githubusercontent.com` and copy the URL exactly as shown above.                         |
-| `Your GitHub account doesn't have access to …`              | You're not on the `msxcp-users` team yet           | See [docs/REQUEST-ACCESS.md](docs/REQUEST-ACCESS.md). After you're added, re-run the bootstrap.                    |
-| `gh auth login` browser flow fails behind a corporate proxy | `HTTP_PROXY` not set                               | `setx HTTP_PROXY http://your.proxy:8080` and reopen PowerShell.                                                    |
-| `winget install jaimecartodb.MSXCP` returns "No package"    | winget-pkgs PR #364380 hasn't merged               | Use the bootstrap one-liner instead, or `winget install --manifest …` against this repo's local manifests.         |
-| MSI download URL 404                                        | Old manifest pointed at the private working repo   | Update to the v0.2.0+ manifest in this repo. `InstallerUrl` now points at this public repo's releases.             |
+| Symptom                                                       | Cause                                                                 | Fix                                                                                                                |
+| ------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `404 Not Found` on the `irm` one-liner                        | Network proxy or you mistyped the URL                                 | Confirm you can reach `raw.githubusercontent.com` and copy the URL exactly as shown above.                         |
+| `Your GitHub account ... can't see mcaps-microsoft/msxcp-engine` and you're a personal GH account | You're signed in with your personal account, not your Microsoft EMU one | `gh auth logout`, re-run the bootstrap, pick the Microsoft option in the browser. Use your `<alias>_microsoft` identity. |
+| Same error but you *are* on your `_microsoft` EMU account     | You're not yet a member of the `mcaps-microsoft` GitHub org           | Join via [StartRight](https://aka.ms/startright) → "Join organization" → search `mcaps-microsoft`. Re-run after.   |
+| `gh auth login` browser flow fails behind a corporate proxy   | `HTTP_PROXY` not set                                                  | `setx HTTP_PROXY http://your.proxy:8080` and reopen PowerShell.                                                    |
+| `winget install jaimecartodb.MSXCP` returns "No package"      | winget-pkgs PR #364380 hasn't merged                                  | Use the bootstrap one-liner instead, or `winget install --manifest …` against this repo's local manifests.         |
+| MSI download URL 404                                          | Old manifest pointed at the old private working repo                  | Update to the v0.2.0+ manifest in this repo. `InstallerUrl` now points at this public repo's releases.             |
 
 ---
 
@@ -85,6 +86,7 @@ winget install --manifest .\msxcp-installer\winget\manifests\j\jaimecartodb\MSXC
 msxcp-installer/
 ├── bootstrap.ps1                  ← one-command first-time setup
 ├── msxcp.ps1                      ← branded launcher (mirrored from working repo)
+├── msxcp.cmd                      ← shim used by the winget-installed exe
 ├── winget/
 │   ├── launcher/                  ← Go source for msxcp.exe (winget portable)
 │   │   ├── go.mod
@@ -94,12 +96,14 @@ msxcp-installer/
 ├── .github/workflows/release.yml  ← builds msxcp.exe + zips on tag push
 ├── docs/
 │   ├── INSTALL.md                 ← long-form install guide
-│   └── REQUEST-ACCESS.md          ← how to get added to msxcp-users
+│   └── REQUEST-ACCESS.md          ← how to join `mcaps-microsoft` via StartRight
 ├── LICENSE
 └── README.md (this file)
 ```
 
-**This repo contains no customer data, no CRM payloads, no MSX queries.** All of that lives in the private working repo (`emea-dn-governance-report`), which the bootstrap clones using your authenticated GitHub session.
+**This repo contains no customer data, no CRM payloads, no MSX queries.** All of that lives in the MCAPS-internal working repo (`mcaps-microsoft/msxcp-engine`), which the bootstrap clones using your authenticated GitHub session.
+
+This installer repo is **public** — it has to be, so the `irm | iex` one-liner works without authentication. Only the *engine* repo containing MCAPS data is Internal.
 
 ---
 
@@ -108,11 +112,12 @@ msxcp-installer/
 Tagging `vX.Y.Z` here triggers `.github/workflows/release.yml`, which:
 
 1. Builds `winget/launcher/msxcp.go` → `msxcp.exe` (Windows amd64).
-2. Packages it as `MSXCP-X.Y.Z.zip`.
-3. Attaches the zip to the GitHub Release.
-4. Computes the SHA256 and updates the corresponding winget manifest (or hands off to `vedantmgoyal9/winget-releaser` to open the upstream PR).
+2. Stages `msxcp.exe` + `msxcp.cmd` + `msxcp.ps1` + `bootstrap.ps1` + `LICENSE` + `README.md`.
+3. Packages them as `MSXCP-X.Y.Z.zip`.
+4. Attaches the zip to the GitHub Release.
+5. Computes the SHA256 and updates the corresponding winget manifest (or hands off to `vedantmgoyal9/winget-releaser` to open the upstream PR).
 
-The winget `InstallerUrl` for every version points at this repo's releases — never the private working repo.
+The winget `InstallerUrl` for every version points at this repo's releases — never the working repo.
 
 ---
 
