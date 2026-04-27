@@ -2,6 +2,23 @@
 
 **Public installer + winget manifests for [MSXCP](https://github.com/mcaps-microsoft/msxcp-engine)** — the AI-powered governance report engine for the EMEA Digital Natives team (MCAPS).
 
+> ### 🛡️ Trust model — please read
+>
+> MSXCP is an **internal Microsoft tool** maintained by **Jaime de Mora** (CTO for Startups & Unicorns, MCAPS EMEA — `jaimedemora@microsoft.com`).
+>
+> The actual engine — including all customer financials, escalations, and territory data — lives at
+> [`mcaps-microsoft/msxcp-engine`](https://github.com/mcaps-microsoft/msxcp-engine), **Internal visibility** in the
+> Microsoft EMU enterprise. Only authenticated MCAPS employees can read it.
+>
+> This **installer repo** is hosted on a personal GitHub account (`jaimecartodb`) for one reason: the
+> bootstrap one-liner uses anonymous `irm | iex`, which requires the script to live on a **public** repo —
+> and the `mcaps-microsoft` GitHub org policy currently allows only Internal/Private visibility. This repo
+> contains **zero customer data** — only the bootstrap script, winget manifests, and onboarding docs.
+>
+> **Canonical entry point:** `https://aka.ms/msxcp` *(Microsoft-managed shortlink, redirects to the bootstrap script in this repo).* Re-pointable by the owner if/when this installer moves to a `microsoft/` org.
+>
+> Audit it before you run it: [`bootstrap.ps1`](bootstrap.ps1) is the only thing the one-liner executes.
+
 > The MSXCP working repository is **MCAPS-internal** (`mcaps-microsoft/msxcp-engine`, Internal visibility).
 > Any Microsoft employee who is a member of the `mcaps-microsoft` GitHub org can install MSXCP — no per-user invitation required.
 > If you're not yet a member of `mcaps-microsoft`, see [docs/REQUEST-ACCESS.md](docs/REQUEST-ACCESS.md).
