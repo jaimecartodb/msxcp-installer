@@ -1,0 +1,98 @@
+name: Build + Release MSXCP launcher
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 0.2.1) — used when running manually'
+        required: true
+
+permissions:
+  contents: write   # to create the GitHub Release + upload the zip
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $v = '${{ inputs.version }}'
+          } else {
+            $v = '${{ github.ref_name }}'.TrimStart('v')
+          }
+          echo "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "tag=v$v"    | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build msxcp.exe (windows/amd64)
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          $stage = "dist/MSXCP-$v"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Push-Location winget/launcher
+          $env:GOOS = 'windows'; $env:GOARCH = 'amd64'; $env:CGO_ENABLED = '0'
+          go build -trimpath -ldflags "-s -w -X main.version=$v" -o "../../$stage/msxcp.exe" .
+          Pop-Location
+
+      - name: Package zip
+        id: zip
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          $zip = "dist/MSXCP-$v.zip"
+          Compress-Archive -Path "dist/MSXCP-$v" -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash
+          echo "zip=$zip"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          echo "sha256=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "SHA256: $hash"
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push'
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          files: ${{ steps.zip.outputs.zip }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            **MSXCP ${{ steps.ver.outputs.tag }}**
+
+            SHA256 of installer zip: `${{ steps.zip.outputs.sha256 }}`
+
+            Install via the bootstrap one-liner — see the [README](https://github.com/jaimecartodb/msxcp-installer#install).
+
+      - name: Update winget manifest with new SHA256
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $v   = '${{ steps.ver.outputs.version }}'
+          $sha = '${{ steps.zip.outputs.sha256 }}'
+          $manifest = "winget/manifests/j/jaimecartodb/MSXCP/$v/jaimecartodb.MSXCP.installer.yaml"
+          if (Test-Path $manifest) {
+            (Get-Content $manifest -Raw) -replace 'InstallerSha256: [0-9a-fA-F]+', "InstallerSha256: $sha" |
+              Set-Content $manifest -NoNewline:$false
+            Write-Host "Patched $manifest"
+          } else {
+            Write-Host "::warning::No manifest found at $manifest — skipping SHA update."
+          }
+
+      # vedantmgoyal9/winget-releaser handles the upstream PR to microsoft/winget-pkgs.
+      # Enable this once the initial PR #364380 lands and we're cutting subsequent releases.
+      # - name: Submit to winget-pkgs
+      #   uses: vedantmgoyal9/winget-releaser@main
+      #   with:
+      #     identifier: jaimecartodb.MSXCP
+      #     installers-regex: 'MSXCP-.*\.zip$'
+      #     token: ${{ secrets.WINGET_TOKEN }}
