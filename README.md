@@ -15,7 +15,7 @@
 > and the `mcaps-microsoft` GitHub org policy currently allows only Internal/Private visibility. This repo
 > contains **zero customer data** — only the bootstrap script, winget manifests, and onboarding docs.
 >
-> **Canonical entry point:** `https://aka.ms/msxcp` *(Microsoft-managed shortlink, redirects to the bootstrap script in this repo).* Re-pointable by the owner if/when this installer moves to a `microsoft/` org.
+> **Canonical entry point:** [`https://aka.ms/msxcp`](https://aka.ms/msxcp) — Microsoft-managed shortlink that redirects to the bootstrap script in this repo. The shortlink is owned in AAD and can be re-pointed any time, so the public-facing one-liner stays stable even if this installer ever moves to a `microsoft/` org.
 >
 > Audit it before you run it: [`bootstrap.ps1`](bootstrap.ps1) is the only thing the one-liner executes.
 
@@ -30,7 +30,7 @@
 ### Recommended — one-liner (Windows 10 1809+ / Windows 11)
 
 ```powershell
-irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/bootstrap.ps1 | iex
+irm https://aka.ms/msxcp | iex
 ```
 
 What this does:
@@ -48,7 +48,7 @@ A transcript of the run is written to `%USERPROFILE%\Coding\msxcp-bootstrap.log`
 ### Check-only mode (don't install anything yet)
 
 ```powershell
-$env:MSXCP_BOOTSTRAP_CHECK = "1"; irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/bootstrap.ps1 | iex
+$env:MSXCP_BOOTSTRAP_CHECK = "1"; irm https://aka.ms/msxcp | iex
 ```
 
 Reports which prereqs are missing and whether your GitHub account has access — without changing your machine.

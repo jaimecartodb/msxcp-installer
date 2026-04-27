@@ -14,7 +14,7 @@ The bootstrap detects this and tells you. MSXCP requires your **Microsoft EMU Gi
 gh auth logout              # clear the personal account
 # re-run the install one-liner — when the browser opens, pick the
 # "Microsoft" / Single Sign-On option, NOT a personal sign-in.
-irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/bootstrap.ps1 | iex
+irm https://aka.ms/msxcp | iex
 ```
 
 If you're not sure whether you have an EMU account, just run the bootstrap — it'll surface the right `gh auth login` flow, and signing in via Microsoft SSO will provision/sign you in to your EMU account automatically.

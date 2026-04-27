@@ -17,12 +17,12 @@
 
 .EXAMPLE
     # From any directory (recommended one-liner):
-    irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/bootstrap.ps1 | iex
+    irm https://aka.ms/msxcp | iex
 
 .EXAMPLE
     # Check prereqs without installing anything:
     $env:MSXCP_BOOTSTRAP_CHECK = "1"
-    irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/bootstrap.ps1 | iex
+    irm https://aka.ms/msxcp | iex
 
 .EXAMPLE
     # Point at an alternate fork or test org:
