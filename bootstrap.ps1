@@ -156,9 +156,19 @@ if (-not $ghAuthed) {
     Write-Host "    [+] Signed in as: $ghUser" -ForegroundColor Green
 }
 
-# Some org SAML setups need an org-read token scope.
+# Some org SAML setups need an org-read token scope. Skip the refresh if we
+# already have it — `gh auth refresh` always opens an OAuth flow, which hangs
+# silently when invoked via `irm | iex` (no TTY for the device-code prompt).
 if (-not $Check) {
-    try { gh auth refresh -h github.com -s read:org 2>&1 | Out-Null } catch {}
+    $hasOrgScope = $false
+    try {
+        $scopesLine = (gh auth status -t 2>&1 | Select-String 'Token scopes' | Select-Object -First 1).ToString()
+        if ($scopesLine -match 'read:org') { $hasOrgScope = $true }
+    } catch {}
+    if (-not $hasOrgScope) {
+        Write-Host "    Granting read:org scope (browser will open briefly)..." -ForegroundColor Gray
+        try { gh auth refresh -h github.com -s read:org } catch {}
+    }
 }
 
 # ── Step 2.5: Verify access to the private working repo ───────
