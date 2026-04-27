@@ -15,7 +15,7 @@ UpgradeBehavior: install
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/jaimecartodb/msxcp-installer/releases/download/v0.3.1/MSXCP-0.3.1.zip
-    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    InstallerSha256: 295DDBB056995C3F4F88BCF75058D0995E16899AA05AD189CDBD1A573C053FB4
 ManifestType: installer
 ManifestVersion: 1.6.0
 # sha256 will be populated automatically by winget-release.yml after the
