@@ -1,6 +1,6 @@
 # MSXCP Installer
 
-**Public installer + winget manifests for [MSXCP](https://github.com/mcaps-microsoft/msxcp-engine)** — the AI-powered governance report engine for the EMEA Digital Natives team (MCAPS).
+**Public installer for [MSXCP](https://github.com/mcaps-microsoft/msxcp-engine)** — the AI-powered governance report engine for the EMEA Digital Natives team (MCAPS).
 
 > ### 🛡️ Trust model — please read
 >
@@ -13,7 +13,7 @@
 > This **installer repo** is hosted on a personal GitHub account (`jaimecartodb`) for one reason: the
 > bootstrap one-liner uses anonymous `irm | iex`, which requires the script to live on a **public** repo —
 > and the `mcaps-microsoft` GitHub org policy currently allows only Internal/Private visibility. This repo
-> contains **zero customer data** — only the bootstrap script, winget manifests, and onboarding docs.
+> contains **zero customer data** — only the bootstrap script and onboarding docs.
 >
 > **Canonical entry point:** [`https://aka.ms/msxcp`](https://aka.ms/msxcp) — Microsoft-managed shortlink that redirects to the bootstrap script in this repo. The shortlink is owned in AAD and can be re-pointed any time, so the public-facing one-liner stays stable even if this installer ever moves to a `microsoft/` org.
 >
@@ -53,24 +53,6 @@ $env:MSXCP_BOOTSTRAP_CHECK = "1"; irm https://aka.ms/msxcp | iex
 
 Reports which prereqs are missing and whether your GitHub account has access — without changing your machine.
 
-### Alternative — winget (coming soon)
-
-> ⚠️ **Not yet available** — the [winget-pkgs PR](https://github.com/microsoft/winget-pkgs/pull/364380) hasn't merged yet.
-> Until it does, use the bootstrap one-liner above.
-
-Once the PR lands, you'll be able to install with:
-
-```powershell
-winget install jaimecartodb.MSXCP
-```
-
-For internal pilots, you can install from the local manifests in this repo today:
-
-```powershell
-git clone https://github.com/jaimecartodb/msxcp-installer
-winget install --manifest .\msxcp-installer\winget\manifests\j\jaimecartodb\MSXCP\0.2.0\
-```
-
 ---
 
 ## Audience matrix — which install path is for me?
@@ -79,8 +61,6 @@ winget install --manifest .\msxcp-installer\winget\manifests\j\jaimecartodb\MSXC
 | ------------------------------------------------------------ | ------------------------------------------------------ |
 | Microsoft employee, member of `mcaps-microsoft` GitHub org   | **Bootstrap one-liner** (top of this README)           |
 | Microsoft employee, **not yet** a member of `mcaps-microsoft` | First [join the org via StartRight](docs/REQUEST-ACCESS.md), then run the bootstrap |
-| Internal pilot wanting the winget UX today                   | `winget install --manifest …` against this repo        |
-| Anyone, once winget-pkgs PR #364380 lands                    | `winget install jaimecartodb.MSXCP`                    |
 
 ---
 
@@ -92,7 +72,6 @@ winget install --manifest .\msxcp-installer\winget\manifests\j\jaimecartodb\MSXC
 | `Your GitHub account ... can't see mcaps-microsoft/msxcp-engine` and you're a personal GH account | You're signed in with your personal account, not your Microsoft EMU one | `gh auth logout`, re-run the bootstrap, pick the Microsoft option in the browser. Use your `<alias>_microsoft` identity. |
 | Same error but you *are* on your `_microsoft` EMU account     | You're not yet a member of the `mcaps-microsoft` GitHub org           | Join via [StartRight](https://aka.ms/startright) → "Join organization" → search `mcaps-microsoft`. Re-run after.   |
 | `gh auth login` browser flow fails behind a corporate proxy   | `HTTP_PROXY` not set                                                  | `setx HTTP_PROXY http://your.proxy:8080` and reopen PowerShell.                                                    |
-| `winget install jaimecartodb.MSXCP` returns "No package"      | winget-pkgs PR #364380 hasn't merged                                  | Use the bootstrap one-liner instead, or `winget install --manifest …` against this repo's local manifests.         |
 | MSI download URL 404                                          | Old manifest pointed at the old private working repo                  | Update to the v0.2.0+ manifest in this repo. `InstallerUrl` now points at this public repo's releases.             |
 
 ---
