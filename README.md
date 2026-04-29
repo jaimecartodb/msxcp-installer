@@ -40,8 +40,9 @@ What this does:
 4. Clones the working repo to `%USERPROFILE%\Coding\msxcp-engine`.
 5. Installs npm + pip dependencies.
 6. Logs you into Azure (browser flow).
-7. Runs the interactive territory-setup wizard.
-8. Registers an `msxcp` command in your PowerShell profile.
+7. **Pre-seeds Copilot CLI tool approvals** for the engine repo so day-to-day commands (`python`, `git`, `gh`, `az`, …) run without a confirmation prompt — *only* inside `~\Coding\msxcp-engine`. Anywhere else on your machine, normal Copilot CLI prompting is unchanged.
+8. Runs the interactive territory-setup wizard.
+9. Registers an `msxcp` command in your PowerShell profile.
 
 A transcript of the run is written to `%USERPROFILE%\Coding\msxcp-bootstrap.log` for support.
 
@@ -52,6 +53,18 @@ $env:MSXCP_BOOTSTRAP_CHECK = "1"; irm https://aka.ms/msxcp | iex
 ```
 
 Reports which prereqs are missing and whether your GitHub account has access — without changing your machine.
+
+### Already installed? Stop the constant approval prompts
+
+If you installed MSXCP before tool-approval pre-seeding shipped, every Copilot CLI shell command (`python`, `git`, `gh`, `az`, …) inside the engine repo asks for confirmation. Run this once to fix it:
+
+```powershell
+irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/trust-tools.ps1 | iex
+```
+
+What it does: merges a standard MSXCP toolset into `~/.copilot/permissions-config.json` for `~\Coding\msxcp-engine` only. Idempotent, backs up to `permissions-config.json.bak`, and changes nothing outside the engine repo.
+
+If your engine lives elsewhere: `$env:MSXCP_ENGINE_PATH = 'D:\work\msxcp-engine'` before the `irm` line.
 
 ---
 
@@ -81,6 +94,9 @@ Reports which prereqs are missing and whether your GitHub account has access —
 ```
 msxcp-installer/
 ├── bootstrap.ps1                  ← one-command first-time setup
+├── trust-tools.ps1                ← one-shot repair: pre-seed Copilot CLI approvals
+├── lib/
+│   └── Set-MsxcpToolApprovals.ps1 ← reusable helper used by bootstrap + trust-tools
 ├── msxcp.ps1                      ← branded launcher (mirrored from working repo)
 ├── msxcp.cmd                      ← shim used by the winget-installed exe
 ├── winget/
