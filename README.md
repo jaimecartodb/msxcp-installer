@@ -40,7 +40,7 @@ What this does:
 4. Clones the working repo to `%USERPROFILE%\Coding\msxcp-engine`.
 5. Installs npm + pip dependencies.
 6. Logs you into Azure (browser flow).
-7. **Pre-seeds Copilot CLI tool approvals** for the engine repo so day-to-day commands (`python`, `git`, `gh`, `az`, …) run without a confirmation prompt — *only* inside `~\Coding\msxcp-engine`. Anywhere else on your machine, normal Copilot CLI prompting is unchanged.
+7. **Registers MSXCP with Copilot CLI**: runs `python -m msxcp install copilot-cli --force`, which (a) registers the MSXCP MCP server in `~/.copilot/mcp.json` so Copilot CLI routes natural-language prompts to MSXCP, and (b) seeds `~/.copilot/permissions-config.json` so day-to-day commands run without confirmation prompts — *only* inside `~\Coding\msxcp-engine`. Anywhere else on your machine, normal Copilot CLI prompting and MCP routing are unchanged. If the Python installer fails for any reason, falls back to a PowerShell shim that handles approvals only.
 8. Runs the interactive territory-setup wizard.
 9. Registers an `msxcp` command in your PowerShell profile.
 
@@ -54,15 +54,17 @@ $env:MSXCP_BOOTSTRAP_CHECK = "1"; irm https://aka.ms/msxcp | iex
 
 Reports which prereqs are missing and whether your GitHub account has access — without changing your machine.
 
-### Already installed? Stop the constant approval prompts
+### Already installed? Stop the constant approval prompts (and/or wire up MCP)
 
-If you installed MSXCP before tool-approval pre-seeding shipped, every Copilot CLI shell command (`python`, `git`, `gh`, `az`, …) inside the engine repo asks for confirmation. Run this once to fix it:
+If you installed MSXCP before the bootstrap registered MSXCP with Copilot CLI, every shell command (`python`, `git`, `gh`, `az`, …) inside the engine repo asks for confirmation, and natural-language prompts may not route to MSXCP. Run this once to fix both:
 
 ```powershell
 irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/trust-tools.ps1 | iex
 ```
 
-What it does: merges a standard MSXCP toolset into `~/.copilot/permissions-config.json` for `~\Coding\msxcp-engine` only. Idempotent, backs up to `permissions-config.json.bak`, and changes nothing outside the engine repo.
+What it does:
+- **Preferred path:** invokes `python -m msxcp install copilot-cli --force` in your engine repo — registers the MSXCP MCP server in `~/.copilot/mcp.json` *and* seeds `~/.copilot/permissions-config.json`. Idempotent, backs up to `mcp.json.bak` and `permissions-config.json.bak`.
+- **Fallback (engine missing or Python missing):** seeds approvals only via a bundled PowerShell shim (no MCP registration). Lets you stop the prompts even before the engine is cloned.
 
 If your engine lives elsewhere: `$env:MSXCP_ENGINE_PATH = 'D:\work\msxcp-engine'` before the `irm` line.
 
