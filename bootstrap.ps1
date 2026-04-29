@@ -308,33 +308,47 @@ try {
     az login --tenant 72f988bf-86f1-41af-91ab-2d7cd011db47
 }
 
-# ── Step 5.5: Pre-seed Copilot CLI tool approvals ────────────
-# Without this, every shell command run by Copilot CLI inside the engine repo
-# triggers a "Yes / Yes-don't-ask-again / No" prompt — death by a thousand
-# confirmations during a normal MSXCP session. Seed a per-folder allow-list
-# of the binaries the engine actually uses (python/pip/git/gh/az/node/npm
-# plus common read-only PowerShell cmdlets), scoped to the engine repo only.
-# Anywhere else, normal Copilot CLI prompting is unchanged.
+# ── Step 5.5: Register MSXCP into Copilot CLI ────────────────
+# The engine ships a canonical installer (`msxcp install copilot-cli`) that:
+#   1. Registers the MSXCP MCP server in ~/.copilot/mcp.json so Copilot CLI
+#      routes natural-language prompts ("generate the Europe South governance
+#      report") to MSXCP automatically.
+#   2. Seeds ~/.copilot/permissions-config.json so the MCP tools and the
+#      narrow shell allow-list MSXCP needs run without per-prompt approvals,
+#      scoped to this engine root only.
+# This is idempotent — safe to re-run on every bootstrap. We pass --force so
+# a stale 'msxcp' MCP entry from a previous engine location is updated to
+# point at the freshly cloned $repoPath instead of being left orphaned.
 Write-Host ""
-Write-Host "  [5.5/6] Pre-seeding Copilot CLI tool approvals for $repoPath..." -ForegroundColor Yellow
+Write-Host "  [5.5/6] Registering MSXCP into Copilot CLI (MCP + auto-approvals)..." -ForegroundColor Yellow
+Push-Location $repoPath
 try {
-    $helperPath = $null
-    $localHelper = Join-Path $PSScriptRoot 'lib\Set-MsxcpToolApprovals.ps1'
-    if (Test-Path $localHelper) {
-        $helperPath = $localHelper
+    $env:MSXCP_ROOT = $repoPath
+    $installOut = python -m msxcp install copilot-cli --force 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        # Echo the engine's own [ok] / [check] lines so the user sees what changed.
+        $installOut | Where-Object { $_ -match '^\s*\[(ok|check|info|warn)\]' } |
+            ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        Write-Host "    [+] MSXCP registered with Copilot CLI." -ForegroundColor Green
     } else {
-        # When invoked via `irm | iex`, $PSScriptRoot is empty / the helper
-        # isn't on disk. Pull it from the same public installer repo.
-        $helperUrl = 'https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/lib/Set-MsxcpToolApprovals.ps1'
-        $helperScript = Invoke-RestMethod -Uri $helperUrl -UseBasicParsing
-        Invoke-Expression $helperScript
+        Write-Host "    [!] msxcp install copilot-cli failed (exit $LASTEXITCODE):" -ForegroundColor Yellow
+        Write-Host ($installOut | Select-Object -Last 6 | Out-String) -ForegroundColor DarkGray
+        Write-Host "        Falling back to PowerShell shim (auto-approvals only, no MCP registration)..." -ForegroundColor Yellow
+        $localHelper = Join-Path $PSScriptRoot 'lib\Set-MsxcpToolApprovals.ps1'
+        if (Test-Path $localHelper) {
+            . $localHelper
+        } else {
+            $helperUrl = 'https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/lib/Set-MsxcpToolApprovals.ps1'
+            Invoke-Expression (Invoke-RestMethod -Uri $helperUrl -UseBasicParsing)
+        }
+        Set-MsxcpToolApprovals -RepoPath $repoPath | Out-Null
     }
-    if ($helperPath) { . $helperPath }
-    Set-MsxcpToolApprovals -RepoPath $repoPath | Out-Null
 } catch {
-    Write-Host "    [!] Could not seed tool approvals: $_" -ForegroundColor Yellow
-    Write-Host "        You can run this manually any time:" -ForegroundColor DarkGray
-    Write-Host "          irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/trust-tools.ps1 | iex" -ForegroundColor DarkGray
+    Write-Host "    [!] Could not register MSXCP with Copilot CLI: $_" -ForegroundColor Yellow
+    Write-Host "        Run this manually after bootstrap completes:" -ForegroundColor DarkGray
+    Write-Host "          cd $repoPath; python -m msxcp install copilot-cli --force" -ForegroundColor DarkGray
+} finally {
+    Pop-Location
 }
 
 # ── Step 6: Interactive setup ─────────────────────────────────
