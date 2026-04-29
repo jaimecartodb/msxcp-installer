@@ -117,39 +117,68 @@ function Set-MsxcpToolApprovals {
     }
 
     # ---- Inventory what's already approved ---------------------------------
+    # Also detect & flatten any LUMPED blocks (commandIdentifiers with > 1
+    # entry) that earlier shim versions wrote — Copilot CLI doesn't honor
+    # those for prompt suppression, so we must split them into one-block-
+    # per-command entries.
     $alreadyApproved = New-Object System.Collections.Generic.HashSet[string](
         [System.StringComparer]::OrdinalIgnoreCase)
     $hasWrite  = $false
     $hasMemory = $false
+    $rewriteNeeded = $false
+    $newApprovals = @()
     foreach ($entry in @($loc.tool_approvals)) {
         if ($null -eq $entry) { continue }
         switch ($entry.kind) {
             'commands' {
-                foreach ($id in @($entry.commandIdentifiers)) {
-                    if ($id) { [void]$alreadyApproved.Add([string]$id) }
+                $ids = @($entry.commandIdentifiers | Where-Object { $_ })
+                if ($ids.Count -gt 1) {
+                    # Split lumped block into one entry per command.
+                    $rewriteNeeded = $true
+                    foreach ($id in $ids) {
+                        [void]$alreadyApproved.Add([string]$id)
+                        $newApprovals += [pscustomobject]@{
+                            kind               = 'commands'
+                            commandIdentifiers = @([string]$id)
+                        }
+                    }
+                } elseif ($ids.Count -eq 1) {
+                    [void]$alreadyApproved.Add([string]$ids[0])
+                    $newApprovals += $entry
+                } else {
+                    # Empty / malformed — drop it.
+                    $rewriteNeeded = $true
                 }
             }
-            'write'  { $hasWrite  = $true }
-            'memory' { $hasMemory = $true }
+            'write'  { $hasWrite  = $true; $newApprovals += $entry }
+            'memory' { $hasMemory = $true; $newApprovals += $entry }
+            default  { $newApprovals += $entry }
         }
     }
+    $loc.tool_approvals = $newApprovals
 
     # ---- Compute additions -------------------------------------------------
+    # IMPORTANT: write ONE block per command identifier. Copilot CLI's stored
+    # format is one entry per cmd (matches the engine's own msxcp/install.py
+    # and every entry the CLI itself writes when the user picks "Yes, don't
+    # ask again"). Multi-element commandIdentifiers arrays are NOT honored
+    # for prompt suppression in current CLI versions, so a lumped block silently
+    # fails to stop the prompts even though it parses cleanly.
     $missingCommands = @($msxcpCommands | Where-Object {
         -not $alreadyApproved.Contains($_)
     })
 
     $additions = @()
-    if ($missingCommands.Count -gt 0) {
+    foreach ($cmd in $missingCommands) {
         $additions += [pscustomobject]@{
             kind               = 'commands'
-            commandIdentifiers = $missingCommands
+            commandIdentifiers = @($cmd)
         }
     }
     if (-not $hasWrite)  { $additions += [pscustomobject]@{ kind = 'write'  } }
     if (-not $hasMemory) { $additions += [pscustomobject]@{ kind = 'memory' } }
 
-    if ($additions.Count -eq 0) {
+    if ($additions.Count -eq 0 -and -not $rewriteNeeded) {
         _Say "    [+] MSXCP tool approvals already in place for $RepoPath" 'Green'
         return [pscustomobject]@{
             Path     = $RepoPath
@@ -159,7 +188,9 @@ function Set-MsxcpToolApprovals {
         }
     }
 
-    $loc.tool_approvals = @($loc.tool_approvals) + $additions
+    if ($additions.Count -gt 0) {
+        $loc.tool_approvals = @($loc.tool_approvals) + $additions
+    }
 
     # ---- Write back atomically ---------------------------------------------
     $tmpPath = "$configPath.tmp"
@@ -173,6 +204,9 @@ function Set-MsxcpToolApprovals {
     }
 
     _Say "    [+] Seeded MSXCP tool approvals for $RepoPath" 'Green'
+    if ($rewriteNeeded) {
+        _Say "        Migrated lumped commandIdentifiers blocks to one-per-command (Copilot CLI requirement)" 'DarkGray'
+    }
     if ($missingCommands.Count -gt 0) {
         _Say "        Added commands: $($missingCommands -join ', ')" 'DarkGray'
     }
