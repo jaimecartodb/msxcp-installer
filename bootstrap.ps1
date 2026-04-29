@@ -308,6 +308,35 @@ try {
     az login --tenant 72f988bf-86f1-41af-91ab-2d7cd011db47
 }
 
+# ── Step 5.5: Pre-seed Copilot CLI tool approvals ────────────
+# Without this, every shell command run by Copilot CLI inside the engine repo
+# triggers a "Yes / Yes-don't-ask-again / No" prompt — death by a thousand
+# confirmations during a normal MSXCP session. Seed a per-folder allow-list
+# of the binaries the engine actually uses (python/pip/git/gh/az/node/npm
+# plus common read-only PowerShell cmdlets), scoped to the engine repo only.
+# Anywhere else, normal Copilot CLI prompting is unchanged.
+Write-Host ""
+Write-Host "  [5.5/6] Pre-seeding Copilot CLI tool approvals for $repoPath..." -ForegroundColor Yellow
+try {
+    $helperPath = $null
+    $localHelper = Join-Path $PSScriptRoot 'lib\Set-MsxcpToolApprovals.ps1'
+    if (Test-Path $localHelper) {
+        $helperPath = $localHelper
+    } else {
+        # When invoked via `irm | iex`, $PSScriptRoot is empty / the helper
+        # isn't on disk. Pull it from the same public installer repo.
+        $helperUrl = 'https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/lib/Set-MsxcpToolApprovals.ps1'
+        $helperScript = Invoke-RestMethod -Uri $helperUrl -UseBasicParsing
+        Invoke-Expression $helperScript
+    }
+    if ($helperPath) { . $helperPath }
+    Set-MsxcpToolApprovals -RepoPath $repoPath | Out-Null
+} catch {
+    Write-Host "    [!] Could not seed tool approvals: $_" -ForegroundColor Yellow
+    Write-Host "        You can run this manually any time:" -ForegroundColor DarkGray
+    Write-Host "          irm https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/trust-tools.ps1 | iex" -ForegroundColor DarkGray
+}
+
 # ── Step 6: Interactive setup ─────────────────────────────────
 Write-Host ""
 Write-Host "  [6/6] Running interactive setup..." -ForegroundColor Yellow
