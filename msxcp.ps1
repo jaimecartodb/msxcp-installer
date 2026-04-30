@@ -157,6 +157,34 @@ if ($territories -gt 0) {
 } else {
     Write-Host "  governance report engine" -ForegroundColor DarkGray
 }
+
+# ── Engine pin / drift check ────────────────────────────────
+# .engine.lock is written by the installer (Set-MsxcpEnginePin.ps1) so every
+# user runs the same engine code as their colleagues. Mismatch = local
+# modifications or `git pull` since pin = colleagues may see different
+# behavior. Non-fatal — just a clear yellow warning.
+$lockPath = Join-Path $RepoRoot ".engine.lock"
+if (Test-Path $lockPath) {
+    try {
+        $lock = Get-Content $lockPath -Raw | ConvertFrom-Json
+        $headSha = (git -C $RepoRoot rev-parse HEAD 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $headSha) {
+            $shortPinned = $lock.engine_sha.Substring(0, [Math]::Min(7, $lock.engine_sha.Length))
+            if ($headSha.Trim() -eq $lock.engine_sha) {
+                Write-Host "  engine: $($lock.engine_ref) · $shortPinned" -ForegroundColor DarkGray
+            } else {
+                $shortHead = $headSha.Substring(0, 7)
+                Write-Host "  engine: $($lock.engine_ref) · $shortPinned" -ForegroundColor DarkGray
+                Write-Host "  [!] Engine has drifted from pinned $($lock.engine_ref) (now at $shortHead)" -ForegroundColor Yellow
+                Write-Host "      Colleagues may see different behavior. Re-run bootstrap.ps1 to repin." -ForegroundColor Yellow
+            }
+        }
+    } catch {
+        Write-Host "  [!] Could not read .engine.lock: $_" -ForegroundColor Yellow
+    }
+} elseif (Test-Path (Join-Path $RepoRoot ".git")) {
+    Write-Host "  [!] Engine version not pinned. Re-run bootstrap.ps1 to pin to a known version." -ForegroundColor Yellow
+}
 Write-Host ""
 
 # ── What's new — last 3 commits (best-effort, silently skipped on non-git) ──

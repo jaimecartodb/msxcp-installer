@@ -44,15 +44,17 @@
 #>
 param(
     [string]$Owner = $(if ($env:MSXCP_REPO_OWNER) { $env:MSXCP_REPO_OWNER } else { 'mcaps-microsoft' }),
+    [string]$EngineRef = $(if ($env:MSXCP_ENGINE_REF) { $env:MSXCP_ENGINE_REF } else { 'v1.1.0' }),
     [switch]$Check
 )
 
 $ErrorActionPreference = "Stop"
-$WorkDir    = Join-Path $env:USERPROFILE "Coding"
-$LogPath    = Join-Path $WorkDir "msxcp-bootstrap.log"
-$WorkRepo   = "msxcp-engine"
-$AccessUrl  = "https://github.com/jaimecartodb/msxcp-installer/blob/main/docs/REQUEST-ACCESS.md"
-$StartRight = "https://aka.ms/startright"
+$WorkDir          = Join-Path $env:USERPROFILE "Coding"
+$LogPath          = Join-Path $WorkDir "msxcp-bootstrap.log"
+$WorkRepo         = "msxcp-engine"
+$AccessUrl        = "https://github.com/jaimecartodb/msxcp-installer/blob/main/docs/REQUEST-ACCESS.md"
+$StartRight       = "https://aka.ms/startright"
+$InstallerVersion = "0.4.0"
 
 # Honour env var as alternate way to trigger -Check (works through `irm | iex`).
 if ($env:MSXCP_BOOTSTRAP_CHECK -eq "1") { $Check = $true }
@@ -220,12 +222,12 @@ if ($Check) {
 
 # ── Step 3: Clone working repo ────────────────────────────────
 Write-Host ""
-Write-Host "  [3/6] Cloning $WorkRepo..." -ForegroundColor Yellow
+Write-Host "  [3/6] Cloning $WorkRepo (pinning engine to $EngineRef)..." -ForegroundColor Yellow
 $repoPath = Join-Path $WorkDir $WorkRepo
 if (Test-Path $repoPath) {
-    Write-Host "    Already cloned at $repoPath — pulling latest..."
+    Write-Host "    Already cloned at $repoPath - fetching latest refs..."
     Push-Location $repoPath
-    git pull --quiet 2>&1 | Out-Null
+    git fetch --tags --quiet --prune 2>&1 | Out-Null
     Pop-Location
 } else {
     Write-Host "    Cloning to $repoPath..."
@@ -235,6 +237,41 @@ if (Test-Path $repoPath) {
         try { Stop-Transcript } catch {}
         exit 1
     }
+}
+
+# Pin to the requested engine version. This is the local-side counterpart to
+# the canonical-snapshot work in mcaps-microsoft/msxcp-engine PR1-PR5: every
+# user runs the SAME engine code as their colleagues. Set-MsxcpEnginePin.ps1
+# hard-fails on dirty repo / wrong origin / unknown ref.
+$pinScript = Join-Path $PSScriptRoot "lib\Set-MsxcpEnginePin.ps1"
+if (-not (Test-Path $pinScript)) {
+    # Bootstrap can be run via `irm | iex` where $PSScriptRoot is empty —
+    # fetch the helper from the installer repo in that case.
+    $pinUrl = "https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/lib/Set-MsxcpEnginePin.ps1"
+    $pinScript = Join-Path $env:TEMP "Set-MsxcpEnginePin.ps1"
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri $pinUrl -OutFile $pinScript -ErrorAction Stop
+    } catch {
+        Write-Host "    [X] Could not download engine-pin helper: $_" -ForegroundColor Red
+        try { Stop-Transcript } catch {}
+        exit 1
+    }
+}
+
+try {
+    $resolvedSha = & $pinScript -RepoPath $repoPath -Ref $EngineRef -InstallerVersion $InstallerVersion
+    $shortSha = $resolvedSha.Substring(0, 7)
+    Write-Host "    [+] Engine pinned: $EngineRef ($shortSha)" -ForegroundColor Green
+} catch {
+    Write-Host ""
+    Write-Host "    [X] Engine pinning failed:" -ForegroundColor Red
+    Write-Host "    $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "    To override the pinned version:" -ForegroundColor Yellow
+    Write-Host "      `$env:MSXCP_ENGINE_REF = 'v1.0.0'  # or any tag/branch/SHA" -ForegroundColor Yellow
+    Write-Host "      irm https://aka.ms/msxcp | iex" -ForegroundColor Yellow
+    try { Stop-Transcript } catch {}
+    exit 1
 }
 
 # ── Step 4: Install dependencies ──────────────────────────────
