@@ -46,6 +46,21 @@ What this does:
 
 A transcript of the run is written to `%USERPROFILE%\Coding\msxcp-bootstrap.log` for support.
 
+### Engine version pinning
+
+MSXCP is **canonical-by-default** — every user runs the same engine code so every report is bit-identical. The installer pins your engine clone to a specific git tag (currently `v1.0.0`) and writes an `.engine.lock` file recording the pinned ref + resolved SHA. The launcher (`msxcp.ps1`) re-checks this on every run and warns if the engine has drifted from the pin.
+
+**Override the default** to install a different engine version:
+
+```powershell
+$env:MSXCP_ENGINE_REF = "v1.2.0"
+irm https://aka.ms/msxcp | iex
+```
+
+Each tagged installer release ships with one supported engine ref by default — see the release notes. Installer `0.4.0` pins engine `v1.1.0` (the first version that includes the canonical-snapshot loader; do **not** pin to `v1.0.0`, which predates it). If you set `MSXCP_ENGINE_REF` to an unknown tag, the bootstrap fails closed with a list of available tags.
+
+If your engine repo has uncommitted changes, the bootstrap **refuses to repin** rather than silently stashing them — the whole point of pinning is that no one runs modified engine code. Either commit/discard your changes or remove the repo and let bootstrap reclone it.
+
 ### Check-only mode (don't install anything yet)
 
 ```powershell
