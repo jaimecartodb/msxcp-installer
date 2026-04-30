@@ -44,7 +44,7 @@
 #>
 param(
     [string]$Owner = $(if ($env:MSXCP_REPO_OWNER) { $env:MSXCP_REPO_OWNER } else { 'mcaps-microsoft' }),
-    [string]$EngineRef = $(if ($env:MSXCP_ENGINE_REF) { $env:MSXCP_ENGINE_REF } else { 'v1.1.0' }),
+    [string]$EngineRef = $(if ($env:MSXCP_ENGINE_REF) { $env:MSXCP_ENGINE_REF } else { 'v1.2.0' }),
     [switch]$Check
 )
 
@@ -54,7 +54,7 @@ $LogPath          = Join-Path $WorkDir "msxcp-bootstrap.log"
 $WorkRepo         = "msxcp-engine"
 $AccessUrl        = "https://github.com/jaimecartodb/msxcp-installer/blob/main/docs/REQUEST-ACCESS.md"
 $StartRight       = "https://aka.ms/startright"
-$InstallerVersion = "0.4.0"
+$InstallerVersion = "0.5.0"
 
 # Honour env var as alternate way to trigger -Check (works through `irm | iex`).
 if ($env:MSXCP_BOOTSTRAP_CHECK -eq "1") { $Check = $true }
