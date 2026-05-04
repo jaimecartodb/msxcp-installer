@@ -36,13 +36,39 @@
 function Set-MsxcpToolApprovals {
     [CmdletBinding()]
     param(
-        [string]$RepoPath = (Join-Path $env:USERPROFILE 'Coding\msxcp-engine'),
+        # Accept one or more location keys. Default seeds BOTH the engine
+        # repo (developer cwd) AND the user's home directory (the cwd most
+        # users have when invoking the `msxcp` MCP server via Copilot CLI),
+        # so prompts are suppressed in either entry point. Pass a single
+        # path explicitly to scope to just that folder.
+        [string[]]$RepoPath = @(
+            (Join-Path $env:USERPROFILE 'Coding\msxcp-engine'),
+            $env:USERPROFILE
+        ),
         [switch]$Quiet
     )
 
     function _Say($msg, $color = 'Gray') {
         if (-not $Quiet) { Write-Host $msg -ForegroundColor $color }
     }
+
+    # Multi-path entry: dedupe and recurse once per path so the existing
+    # single-path body below stays unchanged. Return an array of results.
+    if ($RepoPath.Count -gt 1) {
+        $seen = New-Object System.Collections.Generic.HashSet[string](
+            [System.StringComparer]::OrdinalIgnoreCase)
+        $results = @()
+        foreach ($p in $RepoPath) {
+            if ([string]::IsNullOrWhiteSpace($p)) { continue }
+            if (-not $seen.Add($p)) { continue }
+            $results += (Set-MsxcpToolApprovals -RepoPath $p -Quiet:$Quiet)
+        }
+        return $results
+    }
+
+    # From here on we're processing exactly one path. Normalize to a string
+    # in a fresh variable so we don't fight the [string[]] param type.
+    $singlePath = [string]$RepoPath[0]
 
     # Standard MSXCP toolset — the binaries the engine actually shells out to,
     # plus the read-only PowerShell cmdlets the agent uses constantly. Keep
@@ -104,11 +130,11 @@ function Set-MsxcpToolApprovals {
     # correctly; ConvertTo-Json will escape backslashes on write.
     $loc = $null
     foreach ($p in $config.locations.PSObject.Properties) {
-        if ($p.Name -eq $RepoPath) { $loc = $p.Value; break }
+        if ($p.Name -eq $singlePath) { $loc = $p.Value; break }
     }
     if (-not $loc) {
         $loc = [pscustomobject]@{ tool_approvals = @() }
-        $config.locations | Add-Member -NotePropertyName $RepoPath `
+        $config.locations | Add-Member -NotePropertyName $singlePath `
             -NotePropertyValue $loc -Force
     }
     if (-not $loc.PSObject.Properties.Match('tool_approvals').Count) {
@@ -179,9 +205,9 @@ function Set-MsxcpToolApprovals {
     if (-not $hasMemory) { $additions += [pscustomobject]@{ kind = 'memory' } }
 
     if ($additions.Count -eq 0 -and -not $rewriteNeeded) {
-        _Say "    [+] MSXCP tool approvals already in place for $RepoPath" 'Green'
+        _Say "    [+] MSXCP tool approvals already in place for $singlePath" 'Green'
         return [pscustomobject]@{
-            Path     = $RepoPath
+            Path     = $singlePath
             Added    = @()
             Skipped  = $true
             Backup   = $(if (Test-Path $backupPath) { $backupPath } else { $null })
@@ -203,7 +229,7 @@ function Set-MsxcpToolApprovals {
         throw
     }
 
-    _Say "    [+] Seeded MSXCP tool approvals for $RepoPath" 'Green'
+    _Say "    [+] Seeded MSXCP tool approvals for $singlePath" 'Green'
     if ($rewriteNeeded) {
         _Say "        Migrated lumped commandIdentifiers blocks to one-per-command (Copilot CLI requirement)" 'DarkGray'
     }
@@ -215,7 +241,7 @@ function Set-MsxcpToolApprovals {
     _Say "        Backup: $backupPath" 'DarkGray'
 
     return [pscustomobject]@{
-        Path    = $RepoPath
+        Path    = $singlePath
         Added   = $missingCommands
         Skipped = $false
         Backup  = $backupPath

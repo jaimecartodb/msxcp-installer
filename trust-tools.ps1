@@ -105,7 +105,7 @@ if ($localHelper) {
     }
 }
 
-$result = Set-MsxcpToolApprovals -RepoPath $enginePath
+$result = Set-MsxcpToolApprovals -RepoPath @($enginePath, $env:USERPROFILE)
 
 Write-Host ''
 if ($result.Skipped) {

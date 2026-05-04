@@ -378,7 +378,7 @@ try {
             $helperUrl = 'https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/lib/Set-MsxcpToolApprovals.ps1'
             Invoke-Expression (Invoke-RestMethod -Uri $helperUrl -UseBasicParsing)
         }
-        Set-MsxcpToolApprovals -RepoPath $repoPath | Out-Null
+        Set-MsxcpToolApprovals -RepoPath @($repoPath, $env:USERPROFILE) | Out-Null
     }
 } catch {
     Write-Host "    [!] Could not register MSXCP with Copilot CLI: $_" -ForegroundColor Yellow
