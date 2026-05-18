@@ -35,7 +35,7 @@ $RepoRoot = $PSScriptRoot
 # Sub-commands dispatch to python msxcp_cli.py and exit immediately.
 # Keeps msxcp.ps1 thin — the Python side owns all real logic so the same
 # behaviour works on macOS/Linux via the `msxcp` shell function.
-$SubCommands = @('doctor','version','update','status','feedback','whats-new','smoke','help','crm')
+$SubCommands = @('doctor','version','update','status','feedback','whats-new','check-updates','smoke','help','crm')
 if ($Command -and $SubCommands -contains $Command.ToLower()) {
     $env:PYTHONIOENCODING = 'utf-8'
     try {
@@ -200,6 +200,30 @@ try {
     }
 } catch {}
 
+# ── Update check — quiet if up to date, yellow banner if behind ──
+# Cached 6h in ~/.msxcp/update-check.json so we don't run `git fetch` on
+# every launch. The engine command always exits 0 — a probe failure
+# (offline, no upstream) is silently swallowed.
+$updateAvailable = 0
+try {
+    $updateJson = python -m msxcp check-updates --quiet-if-fresh --json 2>$null
+    if ($LASTEXITCODE -eq 0 -and $updateJson) {
+        $updateInfo = $updateJson | ConvertFrom-Json
+        $updateAvailable = [int]($updateInfo.commits_behind | ForEach-Object { $_ })
+        if ($updateAvailable -gt 0) {
+            $plural = if ($updateAvailable -eq 1) { "commit" } else { "commits" }
+            Write-Host "  ◈ Update available" -ForegroundColor Yellow -NoNewline
+            Write-Host " — $updateAvailable $plural behind origin/main. Run " -ForegroundColor Yellow -NoNewline
+            Write-Host "msxcp update" -ForegroundColor White -NoNewline
+            Write-Host " to refresh." -ForegroundColor Yellow
+            if ($updateInfo.latest_subject) {
+                Write-Host "    latest: $($updateInfo.latest_subject)" -ForegroundColor DarkGray
+            }
+            Write-Host ""
+        }
+    }
+} catch {}
+
 # ── Launch Copilot CLI with an MSXCP-branded greeting seed ──
 # `copilot -i "<prompt>"` starts interactive mode and auto-executes the seed
 # prompt on turn 1, so the user sees the ◈ welcome banner immediately instead
@@ -212,6 +236,7 @@ if (-not $NoCopilot) {
     if ($userRole) { $seed += " role=$userRole" }
     if ($defaultTerritory) { $seed += " default_territory=$defaultTerritory" }
     if ($userAlias) { $seed += " alias=$userAlias" }
+    if ($updateAvailable -gt 0) { $seed += " update_available=$updateAvailable" }
     if ($Demo) {
         # Demo mode: skip every command-confirmation prompt so a live pitch
         # flows uninterrupted. Safe only for controlled demo runs — never for
