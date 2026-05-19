@@ -243,10 +243,20 @@ if (Test-Path $repoPath) {
 # the canonical-snapshot work in mcaps-microsoft/msxcp-engine PR1-PR5: every
 # user runs the SAME engine code as their colleagues. Set-MsxcpEnginePin.ps1
 # hard-fails on dirty repo / wrong origin / unknown ref.
-$pinScript = Join-Path $PSScriptRoot "lib\Set-MsxcpEnginePin.ps1"
-if (-not (Test-Path $pinScript)) {
-    # Bootstrap can be run via `irm | iex` where $PSScriptRoot is empty —
-    # fetch the helper from the installer repo in that case.
+#
+# When bootstrap.ps1 is run via `irm https://aka.ms/msxcp | iex`, $PSScriptRoot
+# is the empty string. Join-Path then throws "Cannot bind argument to parameter
+# 'Path' because it is an empty string" BEFORE the Test-Path fallback can run.
+# Guard explicitly: only attempt the local helper path when $PSScriptRoot is
+# populated (i.e. the script was downloaded to disk and executed).
+$pinScript = $null
+if ($PSScriptRoot) {
+    $localPin = Join-Path $PSScriptRoot "lib\Set-MsxcpEnginePin.ps1"
+    if (Test-Path $localPin) { $pinScript = $localPin }
+}
+if (-not $pinScript) {
+    # Bootstrap was run via `irm | iex` (no $PSScriptRoot) — fetch the
+    # helper from the installer repo to a known temp location.
     $pinUrl = "https://raw.githubusercontent.com/jaimecartodb/msxcp-installer/main/lib/Set-MsxcpEnginePin.ps1"
     $pinScript = Join-Path $env:TEMP "Set-MsxcpEnginePin.ps1"
     try {
