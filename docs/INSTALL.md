@@ -1,6 +1,15 @@
 # MSXCP — Detailed install guide
 
-For the quick install, see the [README](../README.md). This guide goes deeper.
+## Install (one-liner)
+
+Open **PowerShell** on Windows 10 1809+ / Windows 11 and run:
+
+```powershell
+irm https://aka.ms/msxcp | iex
+```
+
+That single command installs everything (prereqs via winget, GitHub auth, repo clone, launcher).
+For the short version with screenshots, see the [README](../README.md). This guide goes deeper.
 
 ## What gets installed
 
